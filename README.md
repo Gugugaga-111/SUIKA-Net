@@ -2,7 +2,9 @@
   <img src="logo.png" width="120" alt="SUIKA-Net Logo">
 </p>
 
-<h1 align="center"><b>SUIKA-Net</b></h1>
+<p align="center">
+  <img src="title.png" width="760">
+</p>
 
 <p align="center">
   一个面向毕业设计场景的动漫角色识别项目：以 <code>PyTorch + timm + YOLO + rembg</code> 为核心，实现 <code>global / head / mask</code> 三视图身份建模、原型学习、长尾友好训练，以及本地可演示的前后端 Demo。
