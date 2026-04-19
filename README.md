@@ -1,12 +1,22 @@
-# SUIKA-Net
+<p align="center">
+  <img src="logo.png" width="120" alt="SUIKA-Net Logo">
+</p>
 
-> 一个面向毕业设计场景的动漫角色识别项目：以 `PyTorch + timm + YOLO + rembg` 为核心，实现 `global / head / mask` 三视图身份建模、原型学习、长尾友好训练，以及本地可演示的前后端 Demo。
+<h1 align="center"><b>SUIKA-Net</b></h1>
 
-![Python](https://img.shields.io/badge/Python-3.10+-111827?style=for-the-badge&logo=python)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.5.1%2Bcu121-ee4c2c?style=for-the-badge&logo=pytorch)
-![CUDA](https://img.shields.io/badge/CUDA-Required-0f172a?style=for-the-badge&logo=nvidia)
-![Model](https://img.shields.io/badge/Backbone-ViT%20Base-1d4ed8?style=for-the-badge)
-![Status](https://img.shields.io/badge/Project-Graduation%20Design-7c3aed?style=for-the-badge)
+<p align="center">
+  一个面向毕业设计场景的动漫角色识别项目：以 <code>PyTorch + timm + YOLO + rembg</code> 为核心，实现 <code>global / head / mask</code> 三视图身份建模、原型学习、长尾友好训练，以及本地可演示的前后端 Demo。
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10+-111827?style=for-the-badge&logo=python">
+  <img src="https://img.shields.io/badge/PyTorch-2.5.1%2Bcu121-ee4c2c?style=for-the-badge&logo=pytorch">
+  <img src="https://img.shields.io/badge/CUDA-Required-0f172a?style=for-the-badge&logo=nvidia">
+  <img src="https://img.shields.io/badge/Backbone-ViT%20Base-1d4ed8?style=for-the-badge">
+  <img src="https://img.shields.io/badge/Project-Graduation%20Design-7c3aed?style=for-the-badge">
+</p>
+
+---
 
 ## 项目概览
 
