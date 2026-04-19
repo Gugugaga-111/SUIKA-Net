@@ -1,0 +1,1 @@
+nohup env CUDA_VISIBLE_DEVICES=0 /path/to/miniconda3/envs/bs1/bin/python -u suika_demo/server.py --host 0.0.0.0 --port 8090 > suika_demo/server_8090.log 2>&1 < /dev/null & echo $!

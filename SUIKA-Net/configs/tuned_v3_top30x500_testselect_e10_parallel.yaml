@@ -1,0 +1,83 @@
+seed: 42
+device: auto
+
+data:
+  root: data
+  csv_file: data/meta_top30.csv
+  head_box_file: data/head_boxes.json
+  mask_root: data/masks
+  use_randaugment: true
+  require_head_box: false
+  require_mask: true
+  train_split: train
+  val_split: test
+  test_split: test
+  num_workers: 4
+  pin_memory: true
+
+model:
+  name: vit_base_patch16_224
+  pretrained: true
+  img_size: 224
+  emb_dim: 512
+  proj_hidden_dim: null
+  drop_rate: 0.15
+  use_mixstyle: false
+  mixstyle_p: 0.5
+  mixstyle_alpha: 0.3
+  view_weights:
+    global: 0.90
+    head: 1.30
+    mask: 1.20
+
+optimizer:
+  lr: 0.00015
+  weight_decay: 0.001
+  grad_clip_norm: 1.0
+
+scheduler:
+  min_lr: 1.0e-6
+  warmup_epochs: 8
+  warmup_start_factor: 0.15
+
+training:
+  stage: stage_c
+  epochs: 45
+  batch_size: 32
+  amp: true
+  label_smoothing: 0.12
+  use_class_balanced_ce: true
+  class_balance_beta: 0.9999
+  use_class_balanced_sampler: false
+  sampler_power: 1.0
+  print_freq: 20
+  save_every: 1
+  max_steps_per_epoch: null
+
+loss:
+  lambda_view: 0.25
+  lambda_proto: 0.40
+  prototype_temperature: 0.11
+  prototype_momentum: 0.97
+
+output:
+  dir: outputs/stage_c/tuned_v3_top30x500_testselect_e10_parallel
+  checkpoint_name: latest.pt
+  best_name: best.pt
+
+stages:
+  stage_a:
+    views: [global]
+    lambda_view: 0.0
+    lambda_proto: 0.0
+    use_prototype: false
+  stage_b:
+    views: [global, head, mask]
+    lambda_view: 0.15
+    lambda_proto: 0.0
+    use_prototype: false
+  stage_c:
+    views: [global, head, mask]
+    lambda_view: 0.25
+    lambda_proto: 0.40
+    use_prototype: true

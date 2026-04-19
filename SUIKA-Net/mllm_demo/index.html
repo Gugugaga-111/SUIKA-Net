@@ -1,0 +1,144 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>动漫角色识别系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=ZCOOL+KuaiLe&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-left" aria-hidden="true"></div>
+    <div class="bg-orb orb-right" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <header class="hero">
+        <p class="tag">基于 MLLM 的图像识别</p>
+        <h1>动漫角色检索系统</h1>
+        <p class="hero-desc">上传角色图片，系统将自动识别并生成详细角色档案。</p>
+      </header>
+
+      <section class="panel input-panel">
+        <h2>输入区域</h2>
+        <form id="search-form">
+          <label class="field">
+            <span>角色图片</span>
+            <input
+              id="image-file"
+              name="imageFile"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              required
+            />
+          </label>
+
+          <label class="field">
+            <span>补充要求（可选）</span>
+            <textarea
+              id="extra-prompt"
+              name="extraPrompt"
+              rows="3"
+              placeholder="例如：请重点补充角色的剧情定位、能力特点和关系网络。"
+            ></textarea>
+          </label>
+
+          <div class="actions">
+            <button type="submit" id="submit-btn">开始识别</button>
+            <button type="button" id="reset-btn" class="ghost-btn">清空</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel preview-panel">
+        <h2>图片预览</h2>
+        <div class="preview-box">
+          <img id="preview-image" alt="角色预览图" />
+          <p id="preview-placeholder">请选择一张图片（PNG / JPG / WEBP）</p>
+        </div>
+        <p class="hint">建议图片大小不超过 8MB，主体清晰、构图完整。</p>
+      </section>
+
+      <section class="panel result-panel">
+        <div class="result-head">
+          <h2>识别结果</h2>
+          <span id="status-pill" class="pill idle">等待输入</span>
+        </div>
+
+        <div id="result-content" class="result-empty">
+          <p>上传图片并点击“开始识别”后，这里会显示详细角色档案。</p>
+        </div>
+
+        <p id="meta-info" class="meta-info"></p>
+      </section>
+    </main>
+
+    <template id="result-template">
+      <article class="result-card">
+        <div class="result-grid">
+          <div>
+            <h3 id="char-name">未知角色</h3>
+            <p id="jp-name" class="jp-name">日文名：未知</p>
+            <p id="anime-name" class="anime-name">未知作品</p>
+          </div>
+          <div class="confidence-block">
+            <span>置信度</span>
+            <strong id="confidence-text">0%</strong>
+            <div class="confidence-track">
+              <i id="confidence-bar"></i>
+            </div>
+          </div>
+        </div>
+
+        <div id="base-tags" class="detail-chips"></div>
+
+        <section class="detail-section">
+          <h4>角色概览</h4>
+          <p id="char-intro" class="intro-text"></p>
+        </section>
+
+        <section class="detail-section">
+          <h4>剧情定位与背景</h4>
+          <p id="char-background" class="intro-text"></p>
+        </section>
+
+        <div class="detail-columns">
+          <section class="detail-box">
+            <h4>性格特征</h4>
+            <ul id="traits-list" class="detail-list"></ul>
+          </section>
+
+          <section class="detail-box">
+            <h4>能力与技能</h4>
+            <ul id="abilities-list" class="detail-list"></ul>
+          </section>
+        </div>
+
+        <div class="detail-columns">
+          <section class="detail-box">
+            <h4>角色关系</h4>
+            <ul id="relations-list" class="detail-list"></ul>
+          </section>
+
+          <section class="detail-box">
+            <h4>识别依据</h4>
+            <ul id="evidence-list" class="detail-list"></ul>
+          </section>
+        </div>
+
+        <section class="detail-section">
+          <h4>标志台词 / 标记</h4>
+          <ul id="signature-list" class="detail-list"></ul>
+        </section>
+
+        <p id="char-extra" class="extra-text"></p>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

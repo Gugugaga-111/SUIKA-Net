@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SUIKA-Net 动漫角色检索系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=ZCOOL+KuaiLe&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-left" aria-hidden="true"></div>
+    <div class="bg-orb orb-right" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <header class="hero">
+        <p class="tag">基于 SUIKA-Net 的图像检索</p>
+        <h1>动漫角色分类与样本回放</h1>
+        <p class="hero-desc">
+          上传一张角色图像，系统先用 SUIKA-Net 预测具体角色，再从当前数据集中随机抽取该角色样本，展示图片、Pixiv ID 与图片名称。
+        </p>
+      </header>
+
+      <section class="panel input-panel">
+        <h2>输入区域</h2>
+        <form id="predict-form">
+          <label class="field">
+            <span>角色图片</span>
+            <input id="image-file" name="image" type="file" accept="image/png,image/jpeg,image/webp" required />
+          </label>
+
+          <label class="field">
+            <span>随机返回数量</span>
+            <select id="num-gallery" name="num_gallery">
+              <option value="5">5 张</option>
+              <option value="10" selected>10 张</option>
+              <option value="15">15 张</option>
+              <option value="20">20 张</option>
+              <option value="25">25 张</option>
+              <option value="30">30 张</option>
+              <option value="35">35 张</option>
+              <option value="40">40 张</option>
+              <option value="45">45 张</option>
+              <option value="50">50 张</option>
+              <option value="55">55 张</option>
+              <option value="60">60 张</option>
+              <option value="65">65 张</option>
+              <option value="70">70 张</option>
+              <option value="75">75 张</option>
+              <option value="80">80 张</option>
+              <option value="85">85 张</option>
+              <option value="90">90 张</option>
+              <option value="95">95 张</option>
+              <option value="100">100 张</option>
+            </select>
+          </label>
+
+          <div class="field seed-field">
+            <label class="check-row" for="use-fixed-seed">
+              <input id="use-fixed-seed" type="checkbox" />
+              <span>固定随机种子</span>
+            </label>
+            <input
+              id="seed-value"
+              name="seed"
+              type="number"
+              min="0"
+              step="1"
+              value="42"
+              disabled
+            />
+          </div>
+
+          <div class="actions">
+            <button type="submit" id="submit-btn">开始分类</button>
+            <button type="button" id="resample-btn" class="ghost-btn" disabled>同角色重抽</button>
+            <button type="button" id="reset-btn" class="ghost-btn">清空</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel preview-panel">
+        <h2>图片预览</h2>
+        <div class="preview-box">
+          <img id="preview-image" alt="上传预览" />
+          <p id="preview-placeholder">请选择一张图片（PNG / JPG / WEBP）</p>
+        </div>
+        <p class="hint">建议图片主体清晰、尺寸不超过 16MB。</p>
+      </section>
+
+      <section class="panel result-panel">
+        <div class="result-head">
+          <h2>识别结果</h2>
+          <span id="status-pill" class="pill idle">等待输入</span>
+        </div>
+
+        <div id="result-content" class="result-empty">
+          <p>上传图片并点击“开始分类”后，这里会显示角色预测和随机样本结果。</p>
+        </div>
+
+        <p id="meta-info" class="meta-info"></p>
+      </section>
+    </main>
+
+    <template id="result-template">
+      <article class="result-card">
+        <div class="result-grid">
+          <div>
+            <h3 id="char-name">未知角色</h3>
+            <p id="label-text" class="label-text">标签：-</p>
+            <p id="sim-text" class="sim-text">Prototype Similarity：-</p>
+          </div>
+          <div class="confidence-block">
+            <span>置信度</span>
+            <strong id="confidence-text">0%</strong>
+            <div class="confidence-track">
+              <i id="confidence-bar"></i>
+            </div>
+          </div>
+        </div>
+
+        <section class="detail-section">
+          <h4>Top-5 预测</h4>
+          <div id="topk-chips" class="detail-chips"></div>
+        </section>
+
+        <section class="detail-section">
+          <h4>该角色随机样本（来自当前数据集）</h4>
+          <div id="gallery-grid" class="gallery-grid"></div>
+        </section>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
