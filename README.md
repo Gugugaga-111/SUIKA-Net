@@ -7,10 +7,6 @@
 </p>
 
 <p align="center">
-  一个面向毕业设计场景的动漫角色识别项目：以 <code>PyTorch + timm + YOLO + rembg</code> 为核心，实现 <code>global / head / mask</code> 三视图身份建模、原型学习、长尾友好训练，以及本地可演示的前后端 Demo。
-</p>
-
-<p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-111827?style=for-the-badge&logo=python">
   <img src="https://img.shields.io/badge/PyTorch-2.5.1%2Bcu121-ee4c2c?style=for-the-badge&logo=pytorch">
   <img src="https://img.shields.io/badge/CUDA-Required-0f172a?style=for-the-badge&logo=nvidia">
