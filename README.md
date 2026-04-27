@@ -16,201 +16,201 @@
 
 ---
 
-## 项目概览
+## Project Overview
 
-这个仓库不是单纯的分类脚本集合，而是一条完整的动漫角色识别实验链路：
+This repository is not just a collection of classification scripts. It is a complete experimental pipeline for anime character recognition:
 
-- 数据整理：把按角色分类的原始图片整理为 `meta.csv + label_map + class_stats`
-- 三视图构建：为每张图生成 `global`、`head`、`mask-prompt`
-- 模型训练：共享骨干网络、多视图融合、prototype bank、类平衡损失
-- 模型评估：闭集 Top-1 / Top-5 与开放集拒识
-- 本地演示：
-  - `suika_demo`：加载本地 checkpoint 做真实推理
-  - `mllm_demo`：调用 Qwen/Bailian 视觉模型的前端展示页
+- Data preparation: organize raw character-classified images into `meta.csv + label_map + class_stats`
+- Three-view construction: generate `global`, `head`, and `mask-prompt` views for each image
+- Model training: shared backbone, multi-view fusion, prototype bank, and class-balanced loss
+- Model evaluation: closed-set Top-1 / Top-5 and open-set rejection
+- Local demos:
+  - `suika_demo`: loads local checkpoints for real inference
+  - `mllm_demo`: a frontend demo page that calls Qwen/Bailian vision models
 
-项目目标非常明确：让模型更关注“角色身份”本身，而不是背景、构图、局部遮挡或画风统计偏差。
+The goal of this project is very explicit: make the model focus on the character identity itself, rather than background, composition, local occlusion, or style-related statistical bias.
 
-## 核心亮点
+## Core Highlights
 
-- `三视图身份建模`：全图看整体外观，头部看关键细节，mask-prompt 弱化背景干扰
-- `共享 backbone`：三个视图共用一套特征提取器，参数更省、训练更稳
-- `Prototype Bank`：维护类别原型向量，增强类内聚合与类别区分
-- `View Consistency Loss`：约束不同视图对同一角色输出一致语义
-- `Class-Balanced CE / Sampler`：对长尾类别更友好
-- `Open-set Rejection`：评估时可基于置信度与原型相似度拒识未知样本
-- `Strict CUDA Pipeline`：头部检测、掩码生成、Demo 推理都优先按 GPU 流程设计
+- `Three-view identity modeling`: the full image captures overall appearance, the head view captures key details, and the mask-prompt view suppresses background interference
+- `Shared backbone`: all three views share one feature extractor, reducing parameters and improving training stability
+- `Prototype Bank`: maintains class prototype vectors to strengthen intra-class compactness and inter-class separation
+- `View Consistency Loss`: constrains different views of the same character to produce consistent semantics
+- `Class-Balanced CE / Sampler`: more robust for long-tail categories
+- `Open-set Rejection`: rejects unknown samples during evaluation using confidence and prototype similarity
+- `Strict CUDA Pipeline`: head detection, mask generation, and demo inference are all designed around GPU-first execution
 
-## 方法框架
+## Method Framework
 
 ```mermaid
 flowchart LR
-    A["原始角色图片"] --> B["prepare_data.py<br/>生成 meta.csv / label_map / class_stats"]
-    B --> C["generate_head_boxes.py<br/>YOLO 生成 head box"]
-    B --> D["generate_masks.py<br/>rembg 生成 mask"]
+    A["Raw character images"] --> B["prepare_data.py<br/>Generate meta.csv / label_map / class_stats"]
+    B --> C["generate_head_boxes.py<br/>YOLO generates head boxes"]
+    B --> D["generate_masks.py<br/>rembg generates masks"]
     C --> E["AnimeCharacterDataset"]
     D --> E
-    E --> F["global / head / mask 三视图"]
-    F --> G["AnimeNet<br/>共享 Backbone + 投影头"]
-    G --> H["多视图加权融合 z_fuse"]
+    E --> F["global / head / mask three-view inputs"]
+    F --> G["AnimeNet<br/>Shared Backbone + projection head"]
+    G --> H["Weighted multi-view fusion z_fuse"]
     H --> I["Classifier"]
     H --> J["PrototypeBank"]
     I --> K["CE / Class-Balanced CE"]
     J --> L["Prototype Loss"]
     G --> M["View Consistency Loss"]
-    K --> N["总损失"]
+    K --> N["Total loss"]
     L --> N
     M --> N
     N --> O["train.py"]
     O --> P["eval.py / suika_demo"]
 ```
 
-## 仓库结构
+## Repository Structure
 
 ```text
 bs1_code_config_sanitized/
-├─ configs/                 # 训练、评估、Demo 运行配置
-├─ datasets/                # 数据集定义与图像变换
-├─ losses/                  # 分类损失、视图一致性损失、原型损失
-├─ models/                  # AnimeNet、MixStyle、PrototypeBank
-├─ tools/                   # 权重下载、head box 生成、mask 生成
-├─ utils/                   # YAML、随机种子、指标、采样器
-├─ mllm_demo/               # 多模态大模型前端演示
-├─ suika_demo/              # 本地推理 Web Demo
-├─ prepare_data.py          # 数据整理入口
-├─ train.py                 # 训练入口
-├─ eval.py                  # 评估入口
-├─ RUN_TRAINING.md          # 已有训练流程说明
-└─ method.md                # 方法设计文档
+├─ configs/                 # Training, evaluation, and demo runtime configs
+├─ datasets/                # Dataset definitions and image transforms
+├─ losses/                  # Classification loss, view consistency loss, prototype loss
+├─ models/                  # AnimeNet, MixStyle, PrototypeBank
+├─ tools/                   # Weight download, head box generation, mask generation
+├─ utils/                   # YAML, random seeds, metrics, samplers
+├─ mllm_demo/               # Frontend demo for multimodal LLMs
+├─ suika_demo/              # Local inference web demo
+├─ prepare_data.py          # Data preparation entry point
+├─ train.py                 # Training entry point
+├─ eval.py                  # Evaluation entry point
+├─ RUN_TRAINING.md          # Existing training workflow notes
+└─ method.md                # Method design document
 ```
 
-## 代码对应的真实方法设计
+## Actual Method Design Reflected in Code
 
-### 1. 数据层：三视图输入
+### 1. Data Layer: Three-View Inputs
 
-`datasets/anime_dataset.py` 中的 `AnimeCharacterDataset` 会为每个样本返回：
+`datasets/anime_dataset.py` defines `AnimeCharacterDataset`, which returns the following for each sample:
 
-- `global`：原始整图
-- `head`：依据 `head_boxes.json` 裁出的头部区域
-- `mask`：由前景 mask 与模糊背景混合得到的 mask-prompt 视图
+- `global`: the original full image
+- `head`: the head crop extracted according to `head_boxes.json`
+- `mask`: a mask-prompt view constructed by blending the foreground mask with a blurred background
 
-其中有两个重要工程细节：
+Two important engineering details are built into this process:
 
-- `require_head_box=true` 时，缺少 head box 会直接报错；为严格实验模式
-- `require_mask=true` 时，缺少 mask 会直接报错；保证三视图完整性
+- When `require_head_box=true`, missing head boxes raise an error immediately; this is intended for strict experimental mode
+- When `require_mask=true`, missing masks raise an error immediately; this guarantees full three-view integrity
 
-如果关闭严格模式：
+If strict mode is disabled:
 
-- 头部区域会退化成上半身中心裁剪
-- mask-prompt 会退化成轻度模糊背景图
+- The head region falls back to an upper-body center crop
+- The mask-prompt view falls back to a lightly blurred background image
 
-### 2. 模型层：共享骨干 + 融合分类
+### 2. Model Layer: Shared Backbone + Fusion Classification
 
-`models/anime_net.py` 中的 `AnimeNet` 使用 `timm.create_model(...)` 创建 backbone，默认配置为：
+`models/anime_net.py` defines `AnimeNet`, which creates the backbone through `timm.create_model(...)`. The default configuration is:
 
 - `model.name: vit_base_patch16_224`
 - `pretrained: true`
 - `emb_dim: 512`
 
-三个视图分别编码后会得到：
+After encoding the three views separately, the model obtains:
 
 - `z_global`
 - `z_head`
 - `z_mask`
 
-随后按 `view_weights` 做加权平均，得到融合表示 `z_fuse`，再进入：
+These are then combined with weighted averaging according to `view_weights` to produce the fused representation `z_fuse`, which is then used by:
 
-- `classifier` 输出分类 logits
-- `prototype bank` 做原型相似度约束
+- `classifier` to output classification logits
+- `prototype bank` to apply prototype similarity constraints
 
-### 3. 损失层：分类 + 一致性 + 原型
+### 3. Loss Layer: Classification + Consistency + Prototype
 
-`losses/losses.py` 里总损失形式为：
+In `losses/losses.py`, the total loss is defined as:
 
 ```text
 total = cls_loss + lambda_view * view_loss + lambda_proto * proto_loss
 ```
 
-组成如下：
+It consists of:
 
-- `cls_loss`：交叉熵，可带类平衡权重与 label smoothing
-- `view_loss`：三视图两两余弦一致性约束
-- `proto_loss`：与原型库相似度上的监督分类损失
+- `cls_loss`: cross-entropy, optionally with class-balanced weights and label smoothing
+- `view_loss`: pairwise cosine consistency constraints across the three views
+- `proto_loss`: supervised classification loss over similarity to the prototype bank
 
-### 4. 原型层：Prototype Bank
+### 4. Prototype Layer: Prototype Bank
 
-`models/prototype_bank.py` 使用 EMA 方式持续更新每个类别的 prototype：
+`models/prototype_bank.py` uses EMA to continuously update the prototype of each class:
 
-- 输入：当前 batch 的归一化融合特征 `z_fuse`
-- 更新：对同类特征求均值，再与旧 prototype 做动量融合
-- 作用：增强类别中心稳定性，改善长尾与风格波动场景
+- Input: normalized fused features `z_fuse` from the current batch
+- Update rule: average features within the same class, then blend them with the previous prototype using momentum
+- Purpose: stabilize class centers and improve robustness in long-tail and style-varying scenarios
 
-## 训练阶段设计
+## Training Stage Design
 
-`configs/base.yaml` 把训练拆成 3 个阶段：
+`configs/base.yaml` splits training into three stages:
 
 ### `stage_a`
 
-- 视图：`[global]`
+- Views: `global`
 - `lambda_view = 0.0`
 - `lambda_proto = 0.0`
 - `use_prototype = false`
 
-用途：建立最基础 baseline，只做单视图分类。
+Purpose: establish the most basic baseline using single-view classification only.
 
 ### `stage_b`
 
-- 视图：`[global, head, mask]`
+- Views: `[global, head, mask]`
 - `lambda_view = 0.2`
 - `lambda_proto = 0.0`
 - `use_prototype = false`
 
-用途：验证三视图建模与视图一致性约束是否有效。
+Purpose: verify whether three-view modeling and view consistency constraints are effective.
 
 ### `stage_c`
 
-- 视图：`[global, head, mask]`
+- Views: `[global, head, mask]`
 - `lambda_view = 0.2`
 - `lambda_proto = 0.5`
 - `use_prototype = true`
 
-用途：完整方法版本，也是默认训练阶段。
+Purpose: the full method configuration, and also the default training stage.
 
-## 数据格式说明
+## Data Format
 
 ### `meta.csv`
 
-`prepare_data.py` 会输出如下字段：
+`prepare_data.py` outputs the following fields:
 
-| 字段 | 含义 |
+| Field | Meaning |
 | --- | --- |
-| `image_id` | 样本编号 |
-| `file_path` | 图片路径，相对 `data/` 或绝对路径 |
-| `label` | 类别 ID |
-| `label_name` | 角色名 |
-| `anime_id` | 作品名或作品 ID |
-| `style_id` | 画风域标签 |
+| `image_id` | Sample ID |
+| `file_path` | Image path, either relative to `data/` or absolute |
+| `label` | Class ID |
+| `label_name` | Character name |
+| `anime_id` | Work title or work ID |
+| `style_id` | Style-domain label |
 | `split` | `train / val / test` |
-| `rank` | 排序或热度编号 |
-| `source_dir` | 原始角色文件夹名 |
-| `pixiv_id` | 来源图片 ID |
-| `pixiv_rank` | 原始来源排名信息 |
+| `rank` | Ranking or popularity index |
+| `source_dir` | Original character folder name |
+| `pixiv_id` | Source image ID |
+| `pixiv_rank` | Original source ranking information |
 
 ### `label_map.json`
 
-保存 `label_id -> label_name` 映射，Demo 会直接加载它展示角色名称。
+Stores the `label_id -> label_name` mapping. The demo loads it directly to display character names.
 
 ### `class_stats.json`
 
-保存：
+Stores:
 
-- 样本总数
-- 类别数
-- 各 split 样本数
-- 各类别样本数
+- Total number of samples
+- Number of classes
+- Sample counts for each split
+- Sample counts for each class
 
 ### `head_boxes.json`
 
-由 `tools/generate_head_boxes.py` 生成，典型结构：
+Generated by `tools/generate_head_boxes.py`, with a typical structure like:
 
 ```json
 {
@@ -227,11 +227,11 @@ total = cls_loss + lambda_view * view_loss + lambda_proto * proto_loss
 
 ### `data/masks/*.png`
 
-由 `tools/generate_masks.py` 生成的二值前景 mask。数据集会用它构造 mask-prompt 输入图。
+Binary foreground masks generated by `tools/generate_masks.py`. The dataset uses them to build mask-prompt input images.
 
-## 环境依赖
+## Environment Dependencies
 
-代码库的完整依赖记录在 `requirements_full.txt`，核心项包括：
+The full dependency list is recorded in `requirements_full.txt`. Core packages include:
 
 - `torch==2.5.1+cu121`
 - `torchvision==0.20.1+cu121`
@@ -242,20 +242,20 @@ total = cls_loss + lambda_view * view_loss + lambda_proto * proto_loss
 - `opencv-python>=4.13.0`
 - `PyYAML>=6.0.3`
 
-### 环境特征
+### Environment Characteristics
 
-从代码实现看，这个项目默认面向 `CUDA` 环境：
+Based on the code, this project is designed primarily for a `CUDA` environment:
 
-- `utils/io.py` 中 `device=auto` 会优先要求 CUDA
-- `generate_head_boxes.py` 默认自动选 `cuda:0`
-- `generate_masks.py` 强依赖 `CUDAExecutionProvider`
-- `suika_demo/server.py` 在 Demo 场景下明确拒绝退回 CPU
+- In `utils/io.py`, `device=auto` prefers CUDA by default
+- `generate_head_boxes.py` automatically selects `cuda:0` by default
+- `generate_masks.py` depends directly on `CUDAExecutionProvider`
+- `suika_demo/server.py` explicitly rejects fallback to CPU in the demo path
 
-如果你要做正式实验或展示，建议直接在支持 CUDA 的 Python 环境中运行。
+If you are running formal experiments or preparing a demo, use a Python environment with CUDA support.
 
-## 快速开始
+## Quick Start
 
-### 1. 准备数据
+### 1. Prepare Data
 
 ```bash
 python prepare_data.py \
@@ -267,27 +267,27 @@ python prepare_data.py \
   --link-mode symlink
 ```
 
-该步骤会：
+This step will:
 
-- 枚举每个角色文件夹
-- 分配稳定的 `label`
-- 写出 `meta.csv / label_map.json / class_stats.json`
-- 创建空的 `head_boxes.json` 占位文件
+- Enumerate each character folder
+- Assign stable `label` values
+- Write `meta.csv / label_map.json / class_stats.json`
+- Create an empty `head_boxes.json` placeholder file
 
-### 2. 下载权重
+### 2. Download Weights
 
 ```bash
 python tools/download_weights.py --output-root weights --require-cuda
 ```
 
-这个脚本会：
+This script will:
 
-- 下载 YOLO 头部检测权重
-- 下载 backbone 预训练文件
-- 准备 `rembg` 所需 `u2net`
-- 验证 `ultralytics / timm / onnxruntime-gpu` 是否可正常工作
+- Download YOLO head detection weights
+- Download pretrained backbone files
+- Prepare the `u2net` assets required by `rembg`
+- Verify that `ultralytics / timm / onnxruntime-gpu` work correctly
 
-### 3. 生成 head box
+### 3. Generate Head Boxes
 
 ```bash
 python tools/generate_head_boxes.py \
@@ -298,14 +298,14 @@ python tools/generate_head_boxes.py \
   --strict
 ```
 
-脚本特点：
+Script features:
 
-- 支持多个 YOLO 权重集成
-- 支持多尺度 `imgsz-list`
-- 默认启用水平翻转 TTA
-- `strict` 下任何漏检都可直接终止流程
+- Supports ensembling multiple YOLO weights
+- Supports multi-scale `imgsz-list`
+- Enables horizontal-flip TTA by default
+- In `strict` mode, any missed detection can terminate the process directly
 
-### 4. 生成 mask
+### 4. Generate Masks
 
 ```bash
 python tools/generate_masks.py \
@@ -316,40 +316,40 @@ python tools/generate_masks.py \
   --strict
 ```
 
-脚本特点：
+Script features:
 
-- 使用 `rembg + onnxruntime-gpu`
-- 输出二值化 mask
-- 会保存 `masks_report.json`
-- `strict` 下任何失败都可以视为实验数据不合格
+- Uses `rembg + onnxruntime-gpu`
+- Outputs binarized masks
+- Saves `masks_report.json`
+- In `strict` mode, any failure can be treated as invalid experimental data
 
-### 5. 训练模型
+### 5. Train the Model
 
-完整方法：
+Full method:
 
 ```bash
 python train.py --config configs/tuned_v3_top10x500_testselect.yaml
 ```
 
-只跑 baseline：
+Baseline only:
 
 ```bash
 python train.py --config configs/base.yaml --stage stage_a --output-dir outputs/stage_a
 ```
 
-三视图但无 prototype：
+Three-view training without prototype:
 
 ```bash
 python train.py --config configs/base.yaml --stage stage_b --output-dir outputs/stage_b
 ```
 
-干跑检查：
+Dry-run check:
 
 ```bash
 python train.py --config configs/base.yaml --dry-run
 ```
 
-### 6. 评估模型
+### 6. Evaluate the Model
 
 ```bash
 python eval.py \
@@ -359,7 +359,7 @@ python eval.py \
   --save-preds outputs/stage_c/test_preds.csv
 ```
 
-关闭开放集拒识：
+Disable open-set rejection:
 
 ```bash
 python eval.py \
@@ -369,26 +369,26 @@ python eval.py \
   --disable-open-set
 ```
 
-## 训练脚本说明
+## Training Script Notes
 
-`train.py` 的主流程如下：
+The main flow of `train.py` is:
 
-1. 读取 YAML 配置
-2. 应用命令行覆盖参数
-3. 固定随机种子
-4. 构建训练集和验证集
-5. 初始化 `AnimeNet`
-6. 在 `stage_c` 中初始化 `PrototypeBank`
-7. 构建 `AdamW + CosineAnnealingLR`
-8. 按 epoch 训练与验证
-9. 保存：
+1. Read the YAML configuration
+2. Apply command-line override arguments
+3. Fix the random seed
+4. Build the training and validation datasets
+5. Initialize `AnimeNet`
+6. Initialize `PrototypeBank` in `stage_c`
+7. Build `AdamW + CosineAnnealingLR`
+8. Train and validate by epoch
+9. Save:
    - `latest.pt`
    - `best.pt`
    - `epoch_xxx.pt`
    - `history.jsonl`
    - `train_config.json`
 
-### 支持的训练控制参数
+### Supported Training Control Arguments
 
 - `--stage`
 - `--device`
@@ -400,16 +400,16 @@ python eval.py \
 - `--dry-run`
 - `--max-steps`
 
-## 评估脚本说明
+## Evaluation Script Notes
 
-`eval.py` 除了常规闭集分类指标外，还支持开放集判断：
+In addition to standard closed-set classification metrics, `eval.py` also supports open-set decisions:
 
-- `tau_prob`：softmax 最大概率阈值
-- `tau_sim`：prototype 最大相似度阈值
+- `tau_prob`: threshold on maximum softmax probability
+- `tau_sim`: threshold on maximum prototype similarity
 
-如果样本同时不满足这些条件，就会把预测标为 `-1`，表示未知类。
+If a sample fails both conditions, its prediction is set to `-1`, meaning unknown class.
 
-### 输出指标
+### Output Metrics
 
 - `closed_set_top1`
 - `closed_set_top5`
@@ -417,9 +417,9 @@ python eval.py \
 - `open_set_unknown_rate`
 - `num_samples`
 
-### 预测结果导出
+### Prediction Export
 
-如果使用 `--save-preds`，会生成 CSV，包含：
+If `--save-preds` is used, a CSV file will be generated containing:
 
 - `file_path`
 - `label`
@@ -428,39 +428,39 @@ python eval.py \
 - `conf`
 - `sim`
 
-## 配置文件说明
+## Configuration File Notes
 
-默认配置文件是 `configs/base.yaml`，可以控制以下关键部分：
+The default configuration file is `configs/base.yaml`, which controls the following key sections:
 
 ### `data`
 
-- 数据根目录
+- Data root directory
 - `meta.csv`
-- head box 路径
-- mask 路径
-- 是否强制要求 head box / mask
-- dataloader worker 数
+- Head box path
+- Mask path
+- Whether to strictly require head boxes / masks
+- Number of dataloader workers
 
 ### `model`
 
-- backbone 名称
-- 是否使用预训练
-- 图像尺寸
-- embedding 维度
-- dropout
-- 是否启用 `MixStyle`
-- 多视图融合权重
+- Backbone name
+- Whether to use pretrained weights
+- Image size
+- Embedding dimension
+- Dropout
+- Whether to enable `MixStyle`
+- Multi-view fusion weights
 
 ### `training`
 
-- 当前 stage
-- epoch 数
-- batch size
+- Current stage
+- Number of epochs
+- Batch size
 - AMP
-- label smoothing
-- 类平衡 CE
-- 类平衡 sampler
-- 日志输出频率
+- Label smoothing
+- Class-balanced CE
+- Class-balanced sampler
+- Logging frequency
 
 ### `loss`
 
@@ -471,65 +471,65 @@ python eval.py \
 
 ### `output`
 
-- 输出目录
-- 最新 checkpoint 名称
-- 最优 checkpoint 名称
+- Output directory
+- Latest checkpoint name
+- Best checkpoint name
 
-## Demo 说明
+## Demo Notes
 
 ## `suika_demo`
 
-这是最贴近“项目成果展示”的本地完整推理 Demo。
+This is the local full-inference demo that is closest to an actual project-results presentation.
 
-### 功能
+### Features
 
-- 上传一张角色图
-- 后端实时执行：
+- Upload one character image
+- Execute on the backend in real time:
   - head detection
   - mask inference
-  - 三视图分类推理
-- 返回：
-  - 预测角色名
-  - 置信度
-  - prototype 相似度
-  - Top-K 候选
-  - 同类别随机图库结果
+  - three-view classification inference
+- Return:
+  - predicted character name
+  - confidence score
+  - prototype similarity
+  - Top-K candidates
+  - random gallery results from the same class
 
-### 启动方式
+### Launch
 
 ```bash
 python suika_demo/server.py --host 0.0.0.0 --port 8090
 ```
 
-### 默认 API
+### Default API
 
 - `POST /api/predict`
 - `GET /api/gallery`
 - `GET /api/image`
 - `GET /api/health`
 
-### 工程特点
+### Engineering Characteristics
 
-- 直接加载本地 checkpoint，不依赖外部推理 API
-- 强依赖 CUDA
-- 启动时默认 warmup，降低首请求延迟
-- 可根据 `seed + round` 复现图廊随机采样结果
+- Loads local checkpoints directly without depending on external inference APIs
+- Strictly depends on CUDA
+- Performs warmup at startup by default to reduce first-request latency
+- Can reproduce random gallery sampling results based on `seed + round`
 
 ## `mllm_demo`
 
-这是一个纯前端多模态演示页，上传图片后调用 Qwen/Bailian 的视觉模型返回角色资料卡。
+This is a pure frontend multimodal demo page. After an image is uploaded, it calls a Qwen/Bailian vision model and returns a character profile card.
 
-它更偏向：
+It is more oriented toward:
 
-- 展示型页面
-- 多模态问答体验
-- 补充毕业设计“系统展示感”
+- Presentation pages
+- Multimodal Q&A experience
+- Supplementing the "system demonstration" aspect of a graduation project
 
-它不等价于本项目训练出的分类器本身。
+It is not equivalent to the classifier trained in this project itself.
 
-## 输出产物说明
+## Output Artifacts
 
-训练完成后，常见输出包括：
+After training, common outputs include:
 
 - `outputs/<exp>/latest.pt`
 - `outputs/<exp>/best.pt`
@@ -537,38 +537,38 @@ python suika_demo/server.py --host 0.0.0.0 --port 8090
 - `outputs/<exp>/history.jsonl`
 - `outputs/<exp>/train_config.json`
 
-如果是评估：
+For evaluation:
 
 - `outputs/<exp>/test_preds.csv`
 
-如果是工具链：
+For the tooling pipeline:
 
 - `data/head_boxes_report.json`
 - `data/masks_report.json`
 - `weights/weights_manifest.json`
 
-## 常见问题
+## FAQ
 
-### 1. 为什么很多脚本默认不回退 CPU？
+### 1. Why do many scripts not fall back to CPU by default?
 
-因为这个仓库的很多流程在代码层面就是按 GPU 实验环境设计的，尤其是：
+Because many parts of this repository are designed at the code level for a GPU-based experimental environment, especially:
 
-- YOLO 头部检测
-- rembg 的 onnxruntime CUDA 推理
-- suika_demo 的在线推理
+- YOLO head detection
+- `rembg` with onnxruntime CUDA inference
+- Online inference in `suika_demo`
 
-这不是 bug，而是项目约束。
+This is not a bug. It is a project constraint.
 
-### 2. `require_head_box` 和 `require_mask` 应该怎么选？
+### 2. How should `require_head_box` and `require_mask` be chosen?
 
-- 做正式实验：建议严格模式，保证数据质量
-- 做调试或样例展示：可以临时放宽，允许 fallback
+- For formal experiments: use strict mode to guarantee data quality
+- For debugging or sample demos: you can relax the setting temporarily and allow fallback behavior
 
-### 3. `mllm_demo` 和 `suika_demo` 有什么区别？
+### 3. What is the difference between `mllm_demo` and `suika_demo`?
 
-- `mllm_demo`：外部大模型分析，偏展示
-- `suika_demo`：本地模型真实推理，偏项目成果
+- `mllm_demo`: uses an external multimodal model and is presentation-oriented
+- `suika_demo`: uses the local model for real inference and is result-oriented
 
-### 4. 为什么会有多个 `tuned_*.yaml`？
+### 4. Why are there multiple `tuned_*.yaml` files?
 
-这些通常代表不同实验批次、类别规模、样本数量、随机种子或测试集选择策略，是毕业设计实验记录的一部分。
+These usually represent different experiment batches, class scales, sample counts, random seeds, or test-set selection strategies, and are part of the graduation project's experiment records.
