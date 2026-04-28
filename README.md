@@ -1,9 +1,5 @@
 <p align="center">
-  <img src="logo.png" width="120" alt="SUIKA-Net Logo">
-</p>
-
-<p align="center">
-  <img src="title.png" width="500">
+  <img src="title.png">
 </p>
 
 <p align="center">
